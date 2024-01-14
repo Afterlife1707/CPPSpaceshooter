@@ -40,6 +40,9 @@ gl2d::TextureAtlasPadding spaceShipsAtlas;
 gl2d::Texture bulletsTexture;
 gl2d::TextureAtlasPadding bulletsAtlas;
 
+gl2d::Texture explosionTexture;
+gl2d::TextureAtlasPadding explosionAtlas;
+
 gl2d::Texture backgroundTexture[BACKGROUNDS];
 
 TileRenderer tileRenderer[BACKGROUNDS];
@@ -50,6 +53,7 @@ gl2d::Font font;
 
 Sound shootSound;
 Sound explosionSound;
+Music backgroundMusic;
 
 glui::RendererUi uirenderer;
 bool isInGame = 0;
@@ -64,6 +68,8 @@ void resetGame()
 	health.loadFromFile(RESOURCES_PATH "health.png", true);
 	backgroundTexture[0].loadFromFile(RESOURCES_PATH "background1.png", true);
 	score = 0;
+	StopMusicStream(backgroundMusic);
+	PlayMusicStream(backgroundMusic);
 }
 
 bool initGame()
@@ -78,6 +84,9 @@ bool initGame()
 
 	bulletsTexture.loadFromFileWithPixelPadding(RESOURCES_PATH "spaceShip/stitchedFiles/projectiles.png", 500, true);
 	bulletsAtlas = gl2d::TextureAtlasPadding(3, 2, bulletsTexture.GetSize().x, bulletsTexture.GetSize().y);
+
+	explosionTexture.loadFromFileWithPixelPadding(RESOURCES_PATH "spaceShip/stitchedFiles/explosions.png", 128, true);
+	explosionAtlas = gl2d::TextureAtlasPadding(5, 2, explosionTexture.GetSize().x, explosionTexture.GetSize().y);
 
 	backgroundTexture[0].loadFromFile(RESOURCES_PATH "background1.png", true);
 	backgroundTexture[1].loadFromFile(RESOURCES_PATH "background2.png", true);
@@ -95,6 +104,9 @@ bool initGame()
 	explosionSound = LoadSound(RESOURCES_PATH "explosion.flac");
 	SetSoundVolume(shootSound, 0.1f);
 	SetSoundVolume(explosionSound, 0.8f);
+
+	backgroundMusic = LoadMusicStream(RESOURCES_PATH "bgMusic.mp3");
+	SetMusicVolume(backgroundMusic, 0.5f);
 
 	resetGame();
 
@@ -129,9 +141,9 @@ void spawnEnemy()
 		e.type = shipTypes[3];
 		e.enemyType = Enemy::crasher;
 		e.canShoot = false;
-		e.speed += 500;
-		e.turnSpeed += 300;
-		e.life = 0.5f;
+		e.speed += 150;
+		e.turnSpeed += 200;
+		e.life = 0.1f;
 	}
 
 	data.enemies.push_back(e);
@@ -145,6 +157,11 @@ bool intersectBullet(glm::vec2 bulletPos, glm::vec2 shipPos, float shipSize)
 bool intersectEnemyCrasher(glm::vec2 enemyPos)
 {
 	return glm::distance(enemyPos, data.PlayerPos) <= shipSize;
+}
+
+void renderExplosion()
+{
+    
 }
 
 void gameplay(float deltaTime, int w, int h)
@@ -332,12 +349,12 @@ void gameplay(float deltaTime, int w, int h)
 			data.bullets.push_back(b);
 			if (!IsSoundPlaying(shootSound)) PlaySound(shootSound);
 		}
-		if(data.enemies[i].enemyType == Enemy::crasher)
+		if(data.enemies[i].enemyType == Enemy::crasher) //crasher hit player
 		{
 		    if(intersectEnemyCrasher(data.enemies[i].position))
 		    {
-				//play sound
 				PlaySound(explosionSound);
+				renderExplosion();
 				data.enemies.erase(data.enemies.begin() + i);
 				data.health -= 0.1f;
 				i--;
@@ -388,6 +405,8 @@ void gameplay(float deltaTime, int w, int h)
 
 #pragma endregion
 
+
+	UpdateMusicStream(backgroundMusic);
 }
 
 bool gameLogic(float deltaTime)
