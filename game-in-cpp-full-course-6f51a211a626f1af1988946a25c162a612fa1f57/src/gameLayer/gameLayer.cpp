@@ -17,6 +17,7 @@
 #include <cstdio>
 #include <raudio.h>
 #include <glui/glui.h>
+#include <timer.h>
 
 struct GameplayData
 {
@@ -87,7 +88,6 @@ bool initGame()
 
 	explosionTexture.loadFromFileWithPixelPadding(RESOURCES_PATH "spaceShip/stitchedFiles/explosions.png", 128, true);
 	explosionAtlas = gl2d::TextureAtlasPadding(5, 2, explosionTexture.GetSize().x, explosionTexture.GetSize().y);
-
 	backgroundTexture[0].loadFromFile(RESOURCES_PATH "background1.png", true);
 	backgroundTexture[1].loadFromFile(RESOURCES_PATH "background2.png", true);
 	backgroundTexture[2].loadFromFile(RESOURCES_PATH "background3.png", true);
@@ -159,9 +159,32 @@ bool intersectEnemyCrasher(glm::vec2 enemyPos)
 	return glm::distance(enemyPos, data.PlayerPos) <= shipSize;
 }
 
-void renderExplosion()
+float timer = 0;
+
+void renderExplosion(glm::vec2 enemyPos,float deltaTime)
 {
-    
+	Timer timer;
+	//std::cout << explosionTexture.id << std::endl;
+	/*while(timer <= 5.f)
+	{
+		timer += deltaTime;
+		if (timer >= 5.f)
+		{
+			timer = 0;
+			return;
+		}
+		std::cout << "Timer " << timer << std::endl;
+	    
+	}*/
+	
+	    /*for (int i = 0; i < explosionAtlas.xCount; i += timer)
+		{
+			for (int j = 0; j < explosionAtlas.yCount; j += timer)
+			{
+				renderer.renderRectangle({ enemyPos - glm::vec2(256 , 256), 256,256 }, explosionTexture,
+					Colors_White, {}, 0, explosionAtlas.get(i, j));
+			}
+		}*/
 }
 
 void gameplay(float deltaTime, int w, int h)
@@ -186,7 +209,12 @@ void gameplay(float deltaTime, int w, int h)
 	{
 		move.x = 1;
 	}
-
+	if(platform::isButtonPressedOn(platform::Button::LeftShift))
+	{
+		std::cout << "shift" <<std::endl;
+		glm::vec2 dash = glm::vec2(move.x * 250, move.y * 250);
+		data.PlayerPos += dash;
+	}
 	if (move.x != 0 || move.y != 0) //cant divide by 0
 	{
 		move = glm::normalize(move);
@@ -354,7 +382,7 @@ void gameplay(float deltaTime, int w, int h)
 		    if(intersectEnemyCrasher(data.enemies[i].position))
 		    {
 				PlaySound(explosionSound);
-				renderExplosion();
+				renderExplosion(data.enemies[i].position, deltaTime);
 				data.enemies.erase(data.enemies.begin() + i);
 				data.health -= 0.1f;
 				i--;
