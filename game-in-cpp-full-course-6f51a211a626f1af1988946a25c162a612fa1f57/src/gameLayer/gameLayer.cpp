@@ -15,9 +15,13 @@
 #include <vector>
 #include <enemy.h>
 #include <cstdio>
+#include <future>
 #include <raudio.h>
 #include <glui/glui.h>
 #include <timer.h>
+//#include "mathematics.h"
+
+using namespace std::literals::chrono_literals;
 
 struct GameplayData
 {
@@ -60,6 +64,12 @@ glui::RendererUi uirenderer;
 bool isInGame = 0;
 
 int score = 0;
+std::vector < std::future<void>> m_futures;
+bool explosionActive = 0;
+float dashTimer = 3.f;
+bool pauseCamFollow = 0;
+//Mathematics math;
+float camMinDistance = 1;
 
 void resetGame()
 {
@@ -159,36 +169,55 @@ bool intersectEnemyCrasher(glm::vec2 enemyPos)
 	return glm::distance(enemyPos, data.PlayerPos) <= shipSize;
 }
 
-float timer = 0;
 
 void renderExplosion(glm::vec2 enemyPos,float deltaTime)
 {
-	Timer timer;
-	//std::cout << explosionTexture.id << std::endl;
-	/*while(timer <= 5.f)
+	/*Timer _timer;
+	float timer = 0;
+	float targetTime = 20.f;
+
+	explosionActive = 1;
+	using namespace std::literals::chrono_literals;
+	while(timer <= targetTime)
 	{
-		timer += deltaTime;
-		if (timer >= 5.f)
+		timer += 1 * deltaTime;
+	    //auto remainingTimeToSleep = std::chrono::duration<float>(targetTime - timer);
+		std::cout <<timer<<std::endl;
+	    //if (remainingTimeToSleep > 0s) 
+		//	std::this_thread::sleep_for(remainingTimeToSleep);
+		
+		for (int i = 0; i < explosionAtlas.xCount; i++)
 		{
-			timer = 0;
-			return;
-		}
-		std::cout << "Timer " << timer << std::endl;
-	    
-	}*/
-	
-	    /*for (int i = 0; i < explosionAtlas.xCount; i += timer)
-		{
-			for (int j = 0; j < explosionAtlas.yCount; j += timer)
+			for (int j = 0; j < explosionAtlas.yCount; j++)
 			{
+				std::cout << i << j << std::endl;
+				std::this_thread::sleep_for(1s);
+				if (timer >= targetTime)
+				{
+					explosionActive = 0;
+					return;
+				}
 				renderer.renderRectangle({ enemyPos - glm::vec2(256 , 256), 256,256 }, explosionTexture,
 					Colors_White, {}, 0, explosionAtlas.get(i, j));
 			}
-		}*/
+		}
+	}
+	explosionActive = 0;*/
+}
+
+void cameraDashThread(float deltaTime, int w, int h)
+{
+	camMinDistance = 100.f;
+	std::this_thread::sleep_for(1s);
+	//glm::vec2 pos = math.vec2lerp(glm::vec2(0, 0), data.PlayerPos, 5.f);
+	//renderer.currentCamera.follow(pos, deltaTime * 550, 1, 150, w, h);
+	camMinDistance = 1.f;
+	pauseCamFollow = 0;
 }
 
 void gameplay(float deltaTime, int w, int h)
 {
+	std::cout << camMinDistance << std::endl;
 #pragma region movement
 
 	glm::vec2 move = {};
@@ -209,11 +238,14 @@ void gameplay(float deltaTime, int w, int h)
 	{
 		move.x = 1;
 	}
+	std::thread cameraDash;
 	if(platform::isButtonPressedOn(platform::Button::LeftShift))
 	{
 		std::cout << "shift" <<std::endl;
 		glm::vec2 dash = glm::vec2(move.x * 250, move.y * 250);
 		data.PlayerPos += dash;
+		//pauseCamFollow = 1;
+		//m_futures.push_back(std::async(std::launch::async, cameraDashThread, deltaTime,  w,  h));
 	}
 	if (move.x != 0 || move.y != 0) //cant divide by 0
 	{
@@ -225,7 +257,8 @@ void gameplay(float deltaTime, int w, int h)
 #pragma endregion
 
 #pragma region camera follow
-	renderer.currentCamera.follow(data.PlayerPos, deltaTime * 550, 1, 150, w, h);
+	if(!pauseCamFollow)
+	    renderer.currentCamera.follow(data.PlayerPos, deltaTime * 550, camMinDistance, 150, w, h);
 
 
 #pragma endregion
@@ -377,12 +410,14 @@ void gameplay(float deltaTime, int w, int h)
 			data.bullets.push_back(b);
 			if (!IsSoundPlaying(shootSound)) PlaySound(shootSound);
 		}
-		if(data.enemies[i].enemyType == Enemy::crasher) //crasher hit player
+		if(data.enemies[i].enemyType == Enemy::crasher) //crasher hit player //TODO
 		{
 		    if(intersectEnemyCrasher(data.enemies[i].position))
 		    {
 				PlaySound(explosionSound);
-				renderExplosion(data.enemies[i].position, deltaTime);
+				if(!explosionActive)
+				    m_futures.push_back(std::async(std::launch::async, renderExplosion, data.enemies[i].position, deltaTime));
+				//renderExplosion(data.enemies[i].position, deltaTime);
 				data.enemies.erase(data.enemies.begin() + i);
 				data.health -= 0.1f;
 				i--;
