@@ -1,10 +1,12 @@
 #pragma once
+#include <future>
 #include <glm/vec2.hpp>
 
 bool initGame();
 bool gameLogic(float deltaTime);
 void closeGame();
 
+extern std::vector < std::future<void>> m_futures;
 namespace platform
 {
 	///sets the mouse pos relative to the window's drawing area

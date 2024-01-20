@@ -66,10 +66,10 @@ bool isInGame = 0;
 int score = 0;
 std::vector < std::future<void>> m_futures;
 bool explosionActive = 0;
-float dashTimer = 3.f;
-bool pauseCamFollow = 0;
+constexpr float DASH_CD = 8.f;
+float dashTimer = DASH_CD;
+bool canDash = 1;
 //Mathematics math;
-float camMinDistance = 1;
 
 void resetGame()
 {
@@ -205,19 +205,23 @@ void renderExplosion(glm::vec2 enemyPos,float deltaTime)
 	explosionActive = 0;*/
 }
 
-void cameraDashThread(float deltaTime, int w, int h)
+void dashTimerCountdown()
 {
-	camMinDistance = 100.f;
-	std::this_thread::sleep_for(1s);
-	//glm::vec2 pos = math.vec2lerp(glm::vec2(0, 0), data.PlayerPos, 5.f);
-	//renderer.currentCamera.follow(pos, deltaTime * 550, 1, 150, w, h);
-	camMinDistance = 1.f;
-	pauseCamFollow = 0;
+	Timer timer;
+	float lastFrame = 0.f, dt = 0.f;
+    while(dashTimer>=0)
+    {
+		float currentFrame = glfwGetTime();
+		dt = currentFrame - lastFrame;
+		lastFrame = currentFrame;
+		dashTimer -= dt;
+	}
+	dashTimer = DASH_CD;
+	canDash = 1;
 }
 
 void gameplay(float deltaTime, int w, int h)
 {
-	std::cout << camMinDistance << std::endl;
 #pragma region movement
 
 	glm::vec2 move = {};
@@ -238,14 +242,14 @@ void gameplay(float deltaTime, int w, int h)
 	{
 		move.x = 1;
 	}
-	std::thread cameraDash;
-	if(platform::isButtonPressedOn(platform::Button::LeftShift))
+	if (platform::isButtonPressedOn(platform::Button::LeftShift) && canDash)
 	{
-		std::cout << "shift" <<std::endl;
+		canDash = 0;
 		glm::vec2 dash = glm::vec2(move.x * 250, move.y * 250);
 		data.PlayerPos += dash;
-		//pauseCamFollow = 1;
-		//m_futures.push_back(std::async(std::launch::async, cameraDashThread, deltaTime,  w,  h));
+		m_futures.push_back(std::async(std::launch::async, dashTimerCountdown));
+
+		//todo cam dash effect and dash meter
 	}
 	if (move.x != 0 || move.y != 0) //cant divide by 0
 	{
@@ -257,8 +261,7 @@ void gameplay(float deltaTime, int w, int h)
 #pragma endregion
 
 #pragma region camera follow
-	if(!pauseCamFollow)
-	    renderer.currentCamera.follow(data.PlayerPos, deltaTime * 550, camMinDistance, 150, w, h);
+    renderer.currentCamera.follow(data.PlayerPos, deltaTime * 550, 1, 800, w, h);
 
 
 #pragma endregion
