@@ -68,9 +68,10 @@ std::vector < std::future<void>> m_futures;
 bool explosionActive = 0;
 constexpr float DASH_CD = 3.f;
 float dashTimer = DASH_CD;
-constexpr float EFFECT_DURATION = 5.f;
+constexpr float EFFECT_DURATION = .5f;
 float effectTimer = EFFECT_DURATION;
 bool canDash = 1;
+glm::vec2 playerPosOnHit;
 //Mathematics math;
 
 void resetGame()
@@ -172,26 +173,19 @@ bool intersectEnemyCrasher(glm::vec2 enemyPos)
 	return glm::distance(enemyPos, data.PlayerPos) <= shipSize;
 }
 
-//int explosionXIdx = 0, explosionYIdx = 0;
+int explosionXIdx = 0, explosionYIdx = 0;
 
-void renderExplosion(glm::vec2 enemyPos, float deltaTime)
+void renderExplosion(float deltaTime, glm::vec2 playerPos)
 {
-	/*//Timer timer;
-	//float lastFrame = 0.f, dt = 0.f;
-	explosionActive = 1;
-	using namespace std::literals::chrono_literals;
-	//std::this_thread::sleep_for(1s);
-	
-	while (effectTimer >= 0)
+	effectTimer -= deltaTime;
+	//explosionXIdx += deltaTime;
+	renderer.renderRectangle({ playerPos - glm::vec2(shipSize/2, shipSize/2), 250, 250 }, explosionTexture,
+		Colors_White, {}, 0, explosionAtlas.get(0, 1));
+	if (effectTimer <= 0)
 	{
-		effectTimer -= deltaTime;
-		//std::cout << effectTimer << std::endl;
-		renderer.renderRectangle({ data.PlayerPos - glm::vec2(shipSize / 2, shipSize / 2), shipSize, shipSize }, explosionTexture,
-			Colors_White, {}, 0, explosionAtlas.get(4, 0));
-	    //std::this_thread::sleep_for(1s);
+		effectTimer = EFFECT_DURATION;
+		explosionActive = 0;
 	}
-	effectTimer = EFFECT_DURATION;
-	explosionActive = 0;*/
 }
 
 void gameplay(float deltaTime, int w, int h)
@@ -230,7 +224,7 @@ void gameplay(float deltaTime, int w, int h)
 		move *= deltaTime * 1000;
 		data.PlayerPos += move;
 	}
-	if(!canDash)
+	if(!canDash) //dashing 
 	{
 		dashTimer -= deltaTime;
 	    if (dashTimer <= 0)
@@ -239,12 +233,10 @@ void gameplay(float deltaTime, int w, int h)
 			canDash = 1;
 		}
 	}
-	
-	std::cout << dashTimer << std::endl;
 #pragma endregion
 
 #pragma region camera follow
-    renderer.currentCamera.follow(data.PlayerPos, deltaTime * 550, 1, 800, w, h);
+    renderer.currentCamera.follow(data.PlayerPos, deltaTime * 550, 1, 700, w, h);
 
 
 #pragma endregion
@@ -402,7 +394,10 @@ void gameplay(float deltaTime, int w, int h)
 		    {
 				PlaySound(explosionSound);
 				if(!explosionActive)
-				    m_futures.push_back(std::async(std::launch::async, renderExplosion, data.enemies[i].position, deltaTime));
+				{
+					playerPosOnHit = data.PlayerPos;
+					explosionActive = 1;
+				}
 
 				data.enemies.erase(data.enemies.begin() + i);
 				data.health -= 0.1f;
@@ -410,7 +405,7 @@ void gameplay(float deltaTime, int w, int h)
 		    }
 		}
 	}
-
+	
 #pragma endregion
 
 #pragma region render enemies
@@ -426,6 +421,11 @@ void gameplay(float deltaTime, int w, int h)
 
 	renderSpaceShip(renderer, data.PlayerPos, shipSize, spaceShipsTexture, spaceShipsAtlas.get(3, 0), mouseDirection);
 
+	if(explosionActive) //to render over player ship
+	{
+		renderExplosion(deltaTime, playerPosOnHit);
+		//m_futures.push_back(std::async(std::launch::async, renderExplosion, deltaTime));
+	}
 #pragma endregion
 
 #pragma region ui
@@ -453,7 +453,6 @@ void gameplay(float deltaTime, int w, int h)
 	renderer.popCamera();
 
 #pragma endregion
-
 
 	UpdateMusicStream(backgroundMusic);
 }
