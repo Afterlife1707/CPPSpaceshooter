@@ -66,8 +66,10 @@ bool isInGame = 0;
 int score = 0;
 std::vector < std::future<void>> m_futures;
 bool explosionActive = 0;
-constexpr float DASH_CD = 8.f;
+constexpr float DASH_CD = 3.f;
 float dashTimer = DASH_CD;
+constexpr float EFFECT_DURATION = 5.f;
+float effectTimer = EFFECT_DURATION;
 bool canDash = 1;
 //Mathematics math;
 
@@ -96,11 +98,13 @@ bool initGame()
 	bulletsTexture.loadFromFileWithPixelPadding(RESOURCES_PATH "spaceShip/stitchedFiles/projectiles.png", 500, true);
 	bulletsAtlas = gl2d::TextureAtlasPadding(3, 2, bulletsTexture.GetSize().x, bulletsTexture.GetSize().y);
 
-	explosionTexture.loadFromFileWithPixelPadding(RESOURCES_PATH "spaceShip/stitchedFiles/explosions.png", 128, true);
+	explosionTexture.loadFromFile(RESOURCES_PATH "spaceShip/stitchedFiles/explosions.png", true);
 	explosionAtlas = gl2d::TextureAtlasPadding(5, 2, explosionTexture.GetSize().x, explosionTexture.GetSize().y);
+
 	backgroundTexture[0].loadFromFile(RESOURCES_PATH "background1.png", true);
 	backgroundTexture[1].loadFromFile(RESOURCES_PATH "background2.png", true);
 	backgroundTexture[2].loadFromFile(RESOURCES_PATH "background3.png", true);
+
 	font.createFromFile(RESOURCES_PATH "CommodorePixeled.ttf");
 
 	tileRenderer[0].texture = backgroundTexture[0];
@@ -111,10 +115,9 @@ bool initGame()
 	tileRenderer[2].parallaxStrength = 0.7f;
 
 	shootSound = LoadSound(RESOURCES_PATH "shoot.flac");
-	explosionSound = LoadSound(RESOURCES_PATH "explosion.flac");
 	SetSoundVolume(shootSound, 0.1f);
+	explosionSound = LoadSound(RESOURCES_PATH "explosion.flac");
 	SetSoundVolume(explosionSound, 0.8f);
-
 	backgroundMusic = LoadMusicStream(RESOURCES_PATH "bgMusic.mp3");
 	SetMusicVolume(backgroundMusic, 0.5f);
 
@@ -169,59 +172,31 @@ bool intersectEnemyCrasher(glm::vec2 enemyPos)
 	return glm::distance(enemyPos, data.PlayerPos) <= shipSize;
 }
 
+//int explosionXIdx = 0, explosionYIdx = 0;
 
-void renderExplosion(glm::vec2 enemyPos,float deltaTime)
+void renderExplosion(glm::vec2 enemyPos, float deltaTime)
 {
-	/*Timer _timer;
-	float timer = 0;
-	float targetTime = 20.f;
-
+	/*//Timer timer;
+	//float lastFrame = 0.f, dt = 0.f;
 	explosionActive = 1;
 	using namespace std::literals::chrono_literals;
-	while(timer <= targetTime)
+	//std::this_thread::sleep_for(1s);
+	
+	while (effectTimer >= 0)
 	{
-		timer += 1 * deltaTime;
-	    //auto remainingTimeToSleep = std::chrono::duration<float>(targetTime - timer);
-		std::cout <<timer<<std::endl;
-	    //if (remainingTimeToSleep > 0s) 
-		//	std::this_thread::sleep_for(remainingTimeToSleep);
-		
-		for (int i = 0; i < explosionAtlas.xCount; i++)
-		{
-			for (int j = 0; j < explosionAtlas.yCount; j++)
-			{
-				std::cout << i << j << std::endl;
-				std::this_thread::sleep_for(1s);
-				if (timer >= targetTime)
-				{
-					explosionActive = 0;
-					return;
-				}
-				renderer.renderRectangle({ enemyPos - glm::vec2(256 , 256), 256,256 }, explosionTexture,
-					Colors_White, {}, 0, explosionAtlas.get(i, j));
-			}
-		}
+		effectTimer -= deltaTime;
+		//std::cout << effectTimer << std::endl;
+		renderer.renderRectangle({ data.PlayerPos - glm::vec2(shipSize / 2, shipSize / 2), shipSize, shipSize }, explosionTexture,
+			Colors_White, {}, 0, explosionAtlas.get(4, 0));
+	    //std::this_thread::sleep_for(1s);
 	}
+	effectTimer = EFFECT_DURATION;
 	explosionActive = 0;*/
-}
-
-void dashTimerCountdown()
-{
-	Timer timer;
-	float lastFrame = 0.f, dt = 0.f;
-    while(dashTimer>=0)
-    {
-		float currentFrame = glfwGetTime();
-		dt = currentFrame - lastFrame;
-		lastFrame = currentFrame;
-		dashTimer -= dt;
-	}
-	dashTimer = DASH_CD;
-	canDash = 1;
 }
 
 void gameplay(float deltaTime, int w, int h)
 {
+
 #pragma region movement
 
 	glm::vec2 move = {};
@@ -247,8 +222,6 @@ void gameplay(float deltaTime, int w, int h)
 		canDash = 0;
 		glm::vec2 dash = glm::vec2(move.x * 250, move.y * 250);
 		data.PlayerPos += dash;
-		m_futures.push_back(std::async(std::launch::async, dashTimerCountdown));
-
 		//todo cam dash effect and dash meter
 	}
 	if (move.x != 0 || move.y != 0) //cant divide by 0
@@ -257,7 +230,17 @@ void gameplay(float deltaTime, int w, int h)
 		move *= deltaTime * 1000;
 		data.PlayerPos += move;
 	}
-
+	if(!canDash)
+	{
+		dashTimer -= deltaTime;
+	    if (dashTimer <= 0)
+		{
+			dashTimer = DASH_CD;
+			canDash = 1;
+		}
+	}
+	
+	std::cout << dashTimer << std::endl;
 #pragma endregion
 
 #pragma region camera follow
@@ -420,7 +403,7 @@ void gameplay(float deltaTime, int w, int h)
 				PlaySound(explosionSound);
 				if(!explosionActive)
 				    m_futures.push_back(std::async(std::launch::async, renderExplosion, data.enemies[i].position, deltaTime));
-				//renderExplosion(data.enemies[i].position, deltaTime);
+
 				data.enemies.erase(data.enemies.begin() + i);
 				data.health -= 0.1f;
 				i--;
