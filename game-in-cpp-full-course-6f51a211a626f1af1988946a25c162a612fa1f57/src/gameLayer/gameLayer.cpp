@@ -56,6 +56,9 @@ gl2d::Texture healthBar;
 gl2d::Texture health;
 gl2d::Font font;
 
+gl2d::Texture dashBar;
+gl2d::Texture dash;
+
 Sound shootSound;
 Sound explosionSound;
 Music backgroundMusic;
@@ -72,6 +75,8 @@ constexpr float EFFECT_DURATION = .5f;
 float effectTimer = EFFECT_DURATION;
 bool canDash = 1;
 glm::vec2 playerPosOnHit;
+float dashMeter = 1.f;
+bool disableEnemies = 0; //testing
 //Mathematics math;
 
 void resetGame()
@@ -80,6 +85,8 @@ void resetGame()
 	renderer.currentCamera.follow(data.PlayerPos, 550, 0, 0, renderer.windowW, renderer.windowH);
 	healthBar.loadFromFile(RESOURCES_PATH "healthBar.png", true);
 	health.loadFromFile(RESOURCES_PATH "health.png", true);
+	dashBar.loadFromFile(RESOURCES_PATH "dashBar.png", true);
+	dash.loadFromFile(RESOURCES_PATH "dash.png", true);
 	backgroundTexture[0].loadFromFile(RESOURCES_PATH "background1.png", true);
 	score = 0;
 	StopMusicStream(backgroundMusic);
@@ -88,6 +95,7 @@ void resetGame()
 
 bool initGame()
 {
+	disableEnemies = 1;
 	//initializing stuff for the renderer
 	std::srand(std::time(0));
 	gl2d::init();
@@ -129,6 +137,7 @@ bool initGame()
 
 void spawnEnemy()
 {
+	if (disableEnemies) return;
 	glm::uvec2 shipTypes[] = { {0,0}, {0,1}, {2,0}, {3, 1} };
 	
 	Enemy e;
@@ -216,6 +225,7 @@ void gameplay(float deltaTime, int w, int h)
 		canDash = 0;
 		glm::vec2 dash = glm::vec2(move.x * 250, move.y * 250);
 		data.PlayerPos += dash;
+		dashMeter = 0.f;
 		//todo cam dash effect and dash meter
 	}
 	if (move.x != 0 || move.y != 0) //cant divide by 0
@@ -227,10 +237,12 @@ void gameplay(float deltaTime, int w, int h)
 	if(!canDash) //dashing 
 	{
 		dashTimer -= deltaTime;
+		dashMeter += (1./DASH_CD) * deltaTime;
 	    if (dashTimer <= 0)
 		{
+			dashMeter = 1;
 			dashTimer = DASH_CD;
-			canDash = 1;
+			canDash = 1; 
 		}
 	}
 #pragma endregion
@@ -435,16 +447,28 @@ void gameplay(float deltaTime, int w, int h)
 		glui::Frame f({ 0,0, w, h });
 
 		glui::Box healthBox = glui::Box().xLeftPerc(0.65f).yTopPerc(0.1f).xDimensionPercentage(0.3f).yAspectRatio(1.f / 8.f);
-
 		renderer.renderRectangle(healthBox, healthBar);
 
-		glm::vec4 newRect = healthBox();
-		newRect.z *= data.health;
+		glm::vec4 newRectHealth = healthBox();
+		newRectHealth.z *= data.health;
 
-		glm::vec4 textCoords = { 0,1,1,0 };
-		textCoords.z *= data.health;
+		glm::vec4 textCoordsHealth = { 0,1,1,0 };
+		textCoordsHealth.z *= data.health;
 
-		renderer.renderRectangle(newRect, health, Colors_White, {}, {}, textCoords);
+		renderer.renderRectangle(newRectHealth, health, Colors_White, {}, {}, textCoordsHealth);
+
+
+		glui::Box dashBox = glui::Box().xLeftPerc(0.04f).yTopPerc(0.8f).xDimensionPercentage(0.03f).yAspectRatio(1.f / 0.3f);
+		renderer.renderRectangle(dashBox, dashBar);
+
+		glm::vec4 newRectDash = dashBox();
+		newRectDash.w *= dashMeter;
+
+		glm::vec4 textCoordsDash = { 0,1,1,0 };
+		textCoordsDash.w *= dashMeter;
+
+		renderer.renderRectangle(newRectDash, dash, Colors_White, {}, {}, textCoordsDash);
+
 
 		std::string s = "Score : " + (std::to_string)(score);
 		renderer.renderText(glm::vec2(w/2, 100), s.data(), font, Colors_White, 1.f);
