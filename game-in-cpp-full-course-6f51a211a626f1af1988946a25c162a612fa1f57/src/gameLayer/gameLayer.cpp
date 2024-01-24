@@ -57,11 +57,13 @@ gl2d::Texture health;
 gl2d::Font font;
 
 gl2d::Texture dashBar;
-gl2d::Texture dash;
+gl2d::Texture dash; //meter
+gl2d::Texture dashEffect;//fire effect
 
 Sound shootSound;
 Sound explosionSound;
 Music backgroundMusic;
+Sound dashSound;
 
 glui::RendererUi uirenderer;
 bool isInGame = 0;
@@ -123,12 +125,17 @@ bool initGame()
 	tileRenderer[1].parallaxStrength = 0.4f;
 	tileRenderer[2].parallaxStrength = 0.7f;
 
+
+	dashEffect.loadFromFile(RESOURCES_PATH "dashEffect.png", true);
+
 	shootSound = LoadSound(RESOURCES_PATH "shoot.flac");
 	SetSoundVolume(shootSound, 0.1f);
 	explosionSound = LoadSound(RESOURCES_PATH "explosion.flac");
 	SetSoundVolume(explosionSound, 0.8f);
 	backgroundMusic = LoadMusicStream(RESOURCES_PATH "bgMusic.mp3");
 	SetMusicVolume(backgroundMusic, 0.5f);
+	dashSound = LoadSound(RESOURCES_PATH "dash.mp3");
+	SetSoundVolume(dashSound, 0.8f);
 
 	resetGame();
 
@@ -226,7 +233,8 @@ void gameplay(float deltaTime, int w, int h)
 		glm::vec2 dash = glm::vec2(move.x * 250, move.y * 250);
 		data.PlayerPos += dash;
 		dashMeter = 0.f;
-		//todo cam dash effect and dash meter
+		PlaySound(dashSound);
+
 	}
 	if (move.x != 0 || move.y != 0) //cant divide by 0
 	{
@@ -433,10 +441,19 @@ void gameplay(float deltaTime, int w, int h)
 
 	renderSpaceShip(renderer, data.PlayerPos, shipSize, spaceShipsTexture, spaceShipsAtlas.get(3, 0), mouseDirection);
 
-	if(explosionActive) //to render over player ship
+#pragma endregion
+
+#pragma region render explosion/effects
+
+	if (explosionActive) //to render over player ship
 	{
 		renderExplosion(deltaTime, playerPosOnHit);
 		//m_futures.push_back(std::async(std::launch::async, renderExplosion, deltaTime));
+	}
+	//if(!canDash)
+	{
+		//renderer.renderRectangle({ data.PlayerPos.x, data.PlayerPos.y, shipSize, shipSize }, dashEffect, Colors_White, {}, 
+			//glm::degrees(spaceShipAngle)-90.f);
 	}
 #pragma endregion
 
@@ -460,14 +477,12 @@ void gameplay(float deltaTime, int w, int h)
 
 		glui::Box dashBox = glui::Box().xLeftPerc(0.04f).yTopPerc(0.8f).xDimensionPercentage(0.03f).yAspectRatio(1.f / 0.3f);
 		renderer.renderRectangle(dashBox, dashBar);
-
 		glm::vec4 newRectDash = dashBox();
 		newRectDash.w *= dashMeter;
 
 		glm::vec4 textCoordsDash = { 0,1,1,0 };
-		textCoordsDash.w *= dashMeter;
-
-		renderer.renderRectangle(newRectDash, dash, Colors_White, {}, {}, textCoordsDash);
+		//std::cout << newRectDash.x <<" "<< newRectDash.y<<" "<< newRectDash.z<<" "<< newRectDash.w<< std::endl;
+		renderer.renderRectangle(newRectDash, dash, Colors_White, {}, 0, textCoordsDash);
 
 
 		std::string s = "Score : " + (std::to_string)(score);
