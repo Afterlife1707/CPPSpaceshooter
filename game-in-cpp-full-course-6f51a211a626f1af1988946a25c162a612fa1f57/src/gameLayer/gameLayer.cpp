@@ -450,10 +450,18 @@ void gameplay(float deltaTime, int w, int h)
 		renderExplosion(deltaTime, playerPosOnHit);
 		//m_futures.push_back(std::async(std::launch::async, renderExplosion, deltaTime));
 	}
-	//if(!canDash)
+    //if(!canDash)
 	{
-		//renderer.renderRectangle({ data.PlayerPos.x, data.PlayerPos.y, shipSize, shipSize }, dashEffect, Colors_White, {}, 
-			//glm::degrees(spaceShipAngle)-90.f);
+		//renderer.renderRectangle({ data.PlayerPos.x, data.PlayerPos.y, shipSize - 50, shipSize - 50 }, dashEffect, Colors_White, {},
+			//glm::degrees(spaceShipAngle) - 90.f);
+		glm::mat4 fireModelMatrix = glm::mat4(1.0f);
+
+	    glm::mat4 fireTranslation = glm::translate(glm::mat4(1.0f), glm::vec3(data.PlayerPos.x, data.PlayerPos.y + shipSize / 2 - 60, 0.0f));
+		glm::mat4 fireRotation = glm::rotate(glm::mat4(1.0f), spaceShipAngle, glm::vec3(0.0f, 0.0f, 1.0f));
+
+		fireModelMatrix = fireTranslation * fireRotation;
+		glm::vec4 translationVector(fireModelMatrix[3]);
+	    renderer.renderRectangle({translationVector.x,translationVector.y, shipSize - 50, shipSize - 50 }, dashEffect, Colors_White, {}, glm::degrees(spaceShipAngle) - 90.f);
 	}
 #pragma endregion
 
